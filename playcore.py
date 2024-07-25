@@ -14,8 +14,7 @@ PASSWORD = os.environ.get('PASSWORD')
 def login():
     url = "https://faucetearner.org/api.php?act=login"
     headers = {
-        "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:127.0) Gecko/20100101 Firefox/127.0",
         "Accept": "application/json, text/javascript, */*; q=0.01",
         "Accept-Language": "en-US,en;q=0.5",
         "Accept-Encoding": "gzip, deflate, br",
@@ -35,20 +34,22 @@ def login():
     with requests.Session() as session:
         response = session.post(url, headers=headers, json=data)
         if response.status_code == 200:
-            response_data = response.json()
-            if response_data["code"] == 0:
-                print("Login successful")
-                # Save cookies using pickle
-                with open(COOKIES_FILE, 'wb') as f:
-                    pickle.dump(session.cookies, f)
-                return True
-            else:
-                print("Login failed:", response_data["message"])
+            try:
+                response_data = response.json()
+                if response_data["code"] == 0:
+                    print("Login successful")
+                    # Save cookies using pickle
+                    with open(COOKIES_FILE, 'wb') as f:
+                        pickle.dump(session.cookies, f)
+                    return True
+                else:
+                    print("Login failed:", response_data["message"])
+                    return False
+            except json.JSONDecodeError:
+                print("Failed to parse JSON response")
                 return False
         else:
-            print(
-                f"Failed to login: HTTP {response.status_code} - {response.text}"
-            )
+            print(f"Failed to login: HTTP {response.status_code} - {response.text}")
             return False
 
 
@@ -58,26 +59,24 @@ def faucet(session):  # Take the session object as an argument
         # ...
     }
 
-    response = session.post(url, headers=headers,
-                            json={})  # Use the existing session object
+    response = session.post(url, headers=headers, json={})  # Use the existing session object
     if response.status_code == 200:
-        response_data = response.json()
-        print("Response:", json.dumps(response_data))
-        if response_data["code"] == 0:
-            match = re.search(
-                r'<span translate=\'no\' class=\'text-info fs-2\'>(.+?)<\/span>',
-                response_data["message"],
-            )
-            amount = match.group(1) if match else "unknown amount"
-            print(f"Request successful: Received {amount}")
-            return True
-        elif response_data["code"] == 2:
-            print("Wave missed:", response_data["message"])
+        try:
+            response_data = response.json()
+            print("Response:", json.dumps(response_data))
+            if response_data["code"] == 0:
+                match = re.search(r'<span translate=\'no\' class=\'text-info fs-2\'>(.+?)<\/span>', response_data["message"])
+                amount = match.group(1) if match else "unknown amount"
+                print(f"Request successful: Received {amount}")
+                return True
+            elif response_data["code"] == 2:
+                print("Wave missed:", response_data["message"])
+                return False
+        except json.JSONDecodeError:
+            print("Failed to parse JSON response")
             return False
     else:
-        print(
-            f"Failed to request: HTTP {response.status_code} - {response.text}"
-        )
+        print(f"Failed to request: HTTP {response.status_code} - {response.text}")
         return False
 
 
